@@ -330,7 +330,6 @@
     let unavailableIpads = [];
     let unavailableCacheTs = 0;
 
-    // NEW: inventory + roster caches
     let knownIpadsSet = new Set();
     let knownUsersSet = new Set();
     let inventoryCacheTs = 0;
@@ -344,7 +343,7 @@
 
     let audioCtx = null;
 
-    let historyDom = new Map(); // ipadId -> element
+    let historyDom = new Map();
 
     function log(...args){ if (DEBUG_MODE) console.log(...args); }
 
@@ -422,7 +421,6 @@
       await startScanner();
     }
 
-    // UPDATED: pulls unavailable list + inventory ids + user roster ids in ONE GET
     async function syncSystemCache(retryCount = 0){
       const maxRetries = 3;
       try{
@@ -431,20 +429,17 @@
         const data = await resp.json();
         if (!data.success) throw new Error(data.error || "Bad response");
 
-        // unavailable list
         unavailableIpads = (data.borrowed || [])
           .map(x => (x || "").toString().trim().toUpperCase())
           .filter(Boolean);
         unavailableCacheTs = Date.now();
 
-        // known iPads
         const inv = (data.inventoryIds || [])
           .map(x => (x || "").toString().trim().toUpperCase())
           .filter(Boolean);
         knownIpadsSet = new Set(inv);
         inventoryCacheTs = Date.now();
 
-        // known users
         const users = (data.userIds || [])
           .map(x => (x || "").toString().trim().toUpperCase())
           .filter(Boolean);
@@ -457,14 +452,10 @@
         if (retryCount < maxRetries){
           setTimeout(() => syncSystemCache(retryCount + 1), 800 * (retryCount + 1));
         } else {
-          // offline behavior: keep last cache if it exists, but still allow scanning
           const invAge = Date.now() - inventoryCacheTs;
           const userAge = Date.now() - rosterCacheTs;
-
-          // if cache is too old, do not block, but warn
           if (invAge > 10 * 60 * 1000) knownIpadsSet = new Set();
           if (userAge > 10 * 60 * 1000) knownUsersSet = new Set();
-
           updateBanner("OFFLINE MODE: SCAN USER ID", "status-warning");
         }
       }
@@ -520,7 +511,6 @@
       }
     }
 
-    // NEW: hard reset for iPad Safari camera stability
     async function hardResetScanner(){
       try{
         if (html5QrCode){
@@ -592,7 +582,7 @@
       updateCount_();
       if (sessionHistory.length === 0) {
         document.getElementById("historyList").style.display = "none";
-        updateBanner("READY. SCAN NEXT IPAD", "status-waiting");
+        updateBanner(userId ? "READY. SCAN NEXT IPAD" : "STEP 1: SCAN USER ID", "status-waiting");
       }
     }
 
@@ -620,11 +610,8 @@
       const userPattern = /^[ST]\d{3,}$/i;
       const ipadPattern = /^IPAD-\d{3,}$/i;
 
-      // STEP 1: user
       if (!userId){
         if (userPattern.test(clean)){
-          // NEW: reject users not in roster when cache is available
-          // If cache is empty (offline), allow but server will still reject on save
           if (knownUsersSet.size > 0 && !knownUsersSet.has(clean)){
             updateBanner("USER NOT IN ROSTER", "status-error");
             playError();
@@ -646,10 +633,7 @@
         return;
       }
 
-      // STEP 2: iPads
       if (ipadPattern.test(clean)){
-        // NEW: block unknown iPads before adding
-        // If inventory cache is empty (offline), do not block here, server will still reject
         if (knownIpadsSet.size > 0 && !knownIpadsSet.has(clean)){
           updateBanner("UNKNOWN IPAD ID. DO NOT USE", "status-error");
           playError();
@@ -685,16 +669,12 @@
       vibrate(80);
     }
 
-    // UPDATED: Clear All now hard-resets scanner to prevent iPad Safari camera lock
+    // CHANGE 1: Clear All also resets user
     async function clearAll(){
-      if (sessionHistory.length === 0) return;
-      if (confirm("Clear all scanned iPads and start over?")){
-        sessionHistory = [];
-        clearHistoryDom_();
-        document.getElementById("historyList").style.display = "none";
-        updateCount_();
-        updateBanner("LIST CLEARED", "status-waiting");
+      if (sessionHistory.length === 0 && !userId) return;
 
+      if (confirm("Clear and reset for next user?")){
+        resetAll();
         await hardResetScanner();
       }
     }
@@ -715,16 +695,6 @@
       clearHistoryDom_();
       updateCount_();
       updateBanner("STEP 1: SCAN USER ID", "status-waiting");
-    }
-
-    function resetSessionOnly(){
-      sessionHistory = [];
-      isProcessing = false;
-      document.getElementById("finishBtn").disabled = false;
-      document.getElementById("historyList").style.display = "none";
-      clearHistoryDom_();
-      updateCount_();
-      updateBanner("READY. SCAN NEXT IPAD", "status-waiting");
     }
 
     function setMode(m){
@@ -757,7 +727,6 @@
 
       for (let attempt = 1; attempt <= maxRetries; attempt++){
         try{
-          // NEW: abort after 15s to avoid iPad Safari "stuck fetch"
           const controller = new AbortController();
           const t = setTimeout(() => controller.abort(), 15000);
 
@@ -774,15 +743,17 @@
           try{ result = await resp.json(); } catch(e){}
 
           if (result && result.success){
-            updateBanner("SAVED", "status-success");
+            updateBanner("SAVED. NEXT USER", "status-success");
             playBeep(1100, 200);
             vibrate(40);
+
             await syncSystemCache();
-            setTimeout(resetSessionOnly, 700);
+
+            // CHANGE 2: After every successful save, require new user scan
+            setTimeout(resetAll, 700);
             return;
           }
 
-          // If roster invalid or other hard errors
           if (result && (result.error || result.message) && (!result.results || result.results.length === 0)){
             const msg = (result.message || result.error || "SAVE FAILED").toString().toUpperCase();
             updateBanner(msg, "status-error");
