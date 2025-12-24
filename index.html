@@ -134,7 +134,6 @@
       background:rgba(15,23,42,0.65);
       border-radius:14px;
       z-index:5;
-      margin-top:0;
       height:clamp(220px, 38vh, 360px);
       pointer-events:auto;
     }
@@ -206,6 +205,20 @@
       margin-bottom:12px;
       border:1px solid var(--gray);
       display:none;
+    }
+
+    .history-row{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      padding:12px;
+      border-bottom:1px solid #334155;
+    }
+
+    .history-label{
+      font-weight:900;
+      letter-spacing:1px;
+      color:#e2e8f0;
     }
 
     .action-bar{
@@ -306,7 +319,7 @@
   </div>
 
   <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwmc6TqBcfoU-vaNwv2jQARF8yB0645KxT7GvNM2M4WLWoYWukNhnyGiG_etnwDWgl3/exec";
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzIiBdQgkwI3vgJrgVktRoE6GPQYRGckS6MK9bzfy7SeLoy-7r03D2V0dWA2L0kShw_/exec";
     const DEBUG_MODE = false;
 
     let mode = "borrow";
@@ -324,6 +337,9 @@
     let scannerStarted = false;
 
     let audioCtx = null;
+
+    // DOM performance helpers
+    let historyDom = new Map(); // ipadId -> element
 
     function log(...args){ if (DEBUG_MODE) console.log(...args); }
 
@@ -436,7 +452,7 @@
         html5QrCode = new Html5Qrcode("reader");
 
         const config = {
-          fps: 10,
+          fps: 8,
           qrbox: { width: 280, height: 280 },
           aspectRatio: 1.0,
           formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE]
@@ -483,6 +499,60 @@
     document.addEventListener("visibilitychange", () => {
       if (!document.hidden) setTimeout(restartScanner, 450);
     });
+
+    function updateCount_(){
+      document.getElementById("sessionCount").innerText = "Qty: " + sessionHistory.length;
+    }
+
+    function ensureHistoryVisible_(){
+      const list = document.getElementById("historyList");
+      if (list.style.display !== "block") list.style.display = "block";
+    }
+
+    function addHistoryRowBottom_(ipadId){
+      const list = document.getElementById("historyList");
+      ensureHistoryVisible_();
+
+      const row = document.createElement("div");
+      row.className = "history-row";
+
+      const label = document.createElement("span");
+      label.className = "history-label";
+      label.textContent = ipadId;
+
+      const btn = document.createElement("button");
+      btn.className = "delete-btn";
+      btn.textContent = "DELETE";
+      btn.onclick = () => removeById_(ipadId);
+
+      row.appendChild(label);
+      row.appendChild(btn);
+
+      list.appendChild(row);
+      historyDom.set(ipadId, row);
+      updateCount_();
+    }
+
+    function removeById_(ipadId){
+      const idx = sessionHistory.indexOf(ipadId);
+      if (idx >= 0) sessionHistory.splice(idx, 1);
+
+      const el = historyDom.get(ipadId);
+      if (el && el.parentNode) el.parentNode.removeChild(el);
+      historyDom.delete(ipadId);
+
+      updateCount_();
+      if (sessionHistory.length === 0) {
+        document.getElementById("historyList").style.display = "none";
+        updateBanner("READY. SCAN NEXT IPAD", "status-waiting");
+      }
+    }
+
+    function clearHistoryDom_(){
+      historyDom.clear();
+      const list = document.getElementById("historyList");
+      list.innerHTML = "";
+    }
 
     function onScanSuccess(decodedText){
       const now = Date.now();
@@ -534,7 +604,8 @@
         }
 
         sessionHistory.push(clean);
-        renderHistory();
+        addHistoryRowBottom_(clean);
+
         updateBanner("ADDED " + clean, "status-success");
         playBeep(650, 90);
         vibrate(20);
@@ -546,45 +617,21 @@
       vibrate(80);
     }
 
-    function renderHistory(){
-      const list = document.getElementById("historyList");
-      document.getElementById("sessionCount").innerText = "Qty: " + sessionHistory.length;
-
-      list.innerHTML = [...sessionHistory].reverse().map((id, i) => `
-        <div style="display:flex; justify-content:space-between; align-items:center; padding:12px; border-bottom:1px solid #334155;">
-          <span style="font-weight:900; letter-spacing:1px; color:#e2e8f0;">${id}</span>
-          <button class="delete-btn" onclick="removeItem(${i})">DELETE</button>
-        </div>
-      `).join("");
-
-      if (sessionHistory.length > 0) list.style.display = "block";
-    }
-
-    function removeItem(i){
-      const actualIndex = sessionHistory.length - 1 - i;
-      sessionHistory.splice(actualIndex, 1);
-      renderHistory();
-      if (sessionHistory.length === 0){
-        document.getElementById("historyList").style.display = "none";
-        updateBanner("READY. SCAN NEXT IPAD", "status-waiting");
-      }
-    }
-
     function clearAll(){
       if (sessionHistory.length === 0) return;
       if (confirm("Clear all scanned iPads and start over?")){
         sessionHistory = [];
-        renderHistory();
+        clearHistoryDom_();
         document.getElementById("historyList").style.display = "none";
+        updateCount_();
         updateBanner("LIST CLEARED", "status-waiting");
       }
     }
 
     function toggleHistory(){
       const l = document.getElementById("historyList");
-      if (sessionHistory.length > 0){
-        l.style.display = (l.style.display === "none") ? "block" : "none";
-      }
+      if (sessionHistory.length === 0) return;
+      l.style.display = (l.style.display === "none" || l.style.display === "") ? "block" : "none";
     }
 
     function resetAll(){
@@ -594,7 +641,8 @@
       document.getElementById("finishBtn").disabled = false;
       document.getElementById("userPanel").style.display = "none";
       document.getElementById("historyList").style.display = "none";
-      renderHistory();
+      clearHistoryDom_();
+      updateCount_();
       updateBanner("STEP 1: SCAN USER ID", "status-waiting");
     }
 
@@ -603,7 +651,8 @@
       isProcessing = false;
       document.getElementById("finishBtn").disabled = false;
       document.getElementById("historyList").style.display = "none";
-      renderHistory();
+      clearHistoryDom_();
+      updateCount_();
       updateBanner("READY. SCAN NEXT IPAD", "status-waiting");
     }
 
@@ -658,10 +707,12 @@
           if (result && Array.isArray(result.results)){
             const failed = result.results.filter(r => !r.success).map(r => r.ipadId).filter(Boolean);
 
-            // If only some failed, keep failed ones for retry
             if (failed.length > 0){
+              // Keep only failed ones for retry, rebuild list efficiently
               sessionHistory = failed;
-              renderHistory();
+              clearHistoryDom_();
+              for (const id of sessionHistory) addHistoryRowBottom_(id);
+
               isProcessing = false;
               document.getElementById("finishBtn").disabled = false;
               updateBanner("SOME FAILED. REVIEW AND RETRY", "status-warning");
@@ -671,7 +722,6 @@
               return;
             }
 
-            // No failed listed but still not success, treat as error
             throw new Error("Save failed");
           }
 
