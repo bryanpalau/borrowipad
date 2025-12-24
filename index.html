@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>iPad Borrowing System</title>
+  <title>iPad Express Checkout</title>
 
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
@@ -38,6 +38,7 @@
       padding:10px;
       background:var(--panel);
       border-bottom:1px solid var(--gray);
+      flex-shrink:0;
     }
 
     .mode-toggle{
@@ -46,7 +47,7 @@
       border-radius:10px;
       padding:4px;
       margin:0 auto;
-      max-width:520px;
+      width:min(520px, 100%);
     }
 
     .mode-btn{
@@ -54,10 +55,12 @@
       padding:12px;
       border:none;
       border-radius:8px;
-      font-weight:900;
-      font-size:1rem;
       color:#94a3b8;
       background:none;
+      font-size:1.05rem;
+      font-weight:800;
+      cursor:pointer;
+      transition:0.2s;
     }
 
     .mode-btn.active{
@@ -66,59 +69,116 @@
     }
 
     #reader-container{
+      width:min(560px, 100%);
+      margin:10px auto 0;
+      padding:0 12px;
       position:relative;
-      padding:12px;
+      flex-shrink:0;
     }
 
     #reader{
-      width:100%;
-      height:320px;
+      width:100% !important;
+      height:clamp(220px, 38vh, 360px) !important;
       background:#000;
       border-radius:14px;
       overflow:hidden;
       border:2px solid var(--gray);
+      position:relative;
     }
+
+    #reader video{
+      width:100% !important;
+      height:100% !important;
+      object-fit:cover !important;
+    }
+
+    .scan-overlay{
+      position:absolute;
+      top:50%;
+      left:50%;
+      transform:translate(-50%, -50%);
+      width:min(260px, 72vw);
+      height:min(260px, 72vw);
+      max-width:260px;
+      max-height:260px;
+      border:3px solid var(--success);
+      border-radius:14px;
+      pointer-events:none;
+      opacity:0.55;
+      animation:pulse 2s infinite;
+    }
+
+    @keyframes pulse{
+      0%,100%{ opacity:0.55; }
+      50%{ opacity:0.25; }
+    }
+
+    .scan-corner{
+      position:absolute;
+      width:30px;
+      height:30px;
+      border:3px solid var(--success);
+    }
+    .scan-corner.tl{ top:0; left:0; border-right:none; border-bottom:none; }
+    .scan-corner.tr{ top:0; right:0; border-left:none; border-bottom:none; }
+    .scan-corner.bl{ bottom:0; left:0; border-right:none; border-top:none; }
+    .scan-corner.br{ bottom:0; right:0; border-left:none; border-top:none; }
 
     .start-overlay{
       position:absolute;
-      inset:12px;
-      background:rgba(15,23,42,0.7);
+      inset:0 12px 0 12px;
+      top:0;
       display:flex;
       align-items:center;
       justify-content:center;
+      background:rgba(15,23,42,0.65);
       border-radius:14px;
-      z-index:10;
+      z-index:5;
+      height:clamp(220px, 38vh, 360px);
+      pointer-events:auto;
     }
 
     .start-btn{
-      background:var(--primary);
-      color:#fff;
       border:none;
       border-radius:14px;
-      padding:16px 20px;
+      padding:14px 18px;
       font-weight:900;
       font-size:1rem;
+      color:#fff;
+      background:var(--primary);
+      cursor:pointer;
+      box-shadow:0 10px 25px rgba(0,0,0,0.35);
+    }
+
+    .start-btn:active{
+      opacity:0.85;
+      transform:scale(0.98);
     }
 
     .overlay{
-      flex:1;
+      padding:16px;
       background:var(--panel);
       border-radius:24px 24px 0 0;
-      padding:16px;
+      box-shadow:0 -5px 20px rgba(0,0,0,0.5);
+      flex:1;
       display:flex;
       flex-direction:column;
       overflow:hidden;
+      width:min(900px, 100%);
+      margin:0 auto;
     }
 
     #userPanel{
       display:none;
       justify-content:space-between;
+      gap:10px;
       padding:12px;
       background:#0f172a;
       border-radius:10px;
-      border-left:4px solid var(--primary);
       margin-bottom:10px;
-      font-weight:900;
+      border-left:4px solid var(--primary);
+      flex-shrink:0;
+      align-items:center;
     }
 
     .status-banner{
@@ -127,12 +187,15 @@
       border-radius:10px;
       font-weight:900;
       margin-bottom:10px;
+      flex-shrink:0;
+      font-size:0.95rem;
+      user-select:none;
     }
 
-    .status-waiting{ background:var(--gray); }
-    .status-success{ background:var(--success); }
-    .status-error{ background:var(--danger); }
-    .status-warning{ background:var(--warning); }
+    .status-waiting{ background:var(--gray); color:#cbd5e1; }
+    .status-success{ background:var(--success); color:#fff; border:2px solid #6ee7b7; }
+    .status-error{ background:var(--danger); color:#fff; }
+    .status-warning{ background:var(--warning); color:#fff; }
 
     #historyList{
       flex:1;
@@ -140,272 +203,553 @@
       background:#0f172a;
       border-radius:12px;
       margin-bottom:12px;
+      border:1px solid var(--gray);
       display:none;
     }
 
     .history-row{
       display:flex;
       justify-content:space-between;
+      align-items:center;
       padding:12px;
       border-bottom:1px solid #334155;
-      font-weight:900;
     }
 
-    .delete-btn{
-      background:rgba(239,68,68,0.2);
-      border:1px solid var(--danger);
-      color:#ff8080;
-      border-radius:10px;
-      padding:6px 10px;
-      font-size:0.8rem;
+    .history-label{
       font-weight:900;
+      letter-spacing:1px;
+      color:#e2e8f0;
     }
 
     .action-bar{
       display:grid;
       grid-template-columns:1fr 1fr 1fr;
       gap:10px;
+      height:56px;
+      flex-shrink:0;
     }
 
     .btn-action{
-      padding:14px;
-      border:none;
       border-radius:12px;
+      border:none;
       background:var(--gray);
       color:#fff;
-      font-weight:900;
       font-size:1rem;
+      font-weight:900;
+      cursor:pointer;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      transition:0.2s;
+      min-height:44px;
     }
 
     .btn-finish{ background:var(--primary); }
+    .btn-clear{ background:#475569; }
 
-    /* Confirm modal */
-    #confirmModal{
-      position:fixed;
-      inset:0;
-      background:rgba(15,23,42,0.8);
-      display:none;
-      align-items:center;
-      justify-content:center;
-      z-index:9999;
+    .btn-action:active{
+      opacity:0.7;
+      transform:scale(0.98);
     }
-    #confirmModal .box{
-      background:#1e293b;
-      padding:20px;
-      border-radius:16px;
-      width:90%;
-      max-width:320px;
-      text-align:center;
+
+    .btn-finish:disabled{
+      opacity:0.5;
+      cursor:not-allowed;
     }
-    #confirmModal button{
-      width:100%;
-      margin-top:10px;
-      padding:12px;
+
+    .delete-btn{
+      background:rgba(239,68,68,0.2);
+      color:#ff8080;
+      border:1px solid var(--danger);
+      padding:8px 12px;
       border-radius:10px;
-      border:none;
       font-weight:900;
-      font-size:1rem;
+      font-size:0.8rem;
+      cursor:pointer;
+    }
+
+    @media (max-width:480px){
+      .overlay{ padding:14px; }
+      .mode-btn{ font-size:0.95rem; padding:10px; }
+      .action-bar{ gap:8px; height:52px; }
+      .btn-action{ font-size:0.9rem; }
+      .scan-overlay{ border-width:2px; }
     }
   </style>
 </head>
 
 <body>
-
-<div class="header">
-  <div class="mode-toggle">
-    <button id="btnBorrow" class="mode-btn active" onclick="setMode('borrow')">BORROW</button>
-    <button id="btnReturn" class="mode-btn" onclick="setMode('return')">RETURN</button>
-  </div>
-</div>
-
-<div id="reader-container">
-  <div id="reader"></div>
-  <div id="startOverlay" class="start-overlay">
-    <button class="start-btn" onclick="userStart()">Tap to Start Scanning</button>
-  </div>
-</div>
-
-<div class="overlay">
-  <div id="userPanel">
-    <div>User: <span id="currentUserId"></span></div>
-    <div id="sessionCount">Qty: 0</div>
+  <div class="header">
+    <div class="mode-toggle">
+      <button id="btnBorrow" class="mode-btn active" onclick="setMode('borrow')">BORROW</button>
+      <button id="btnReturn" class="mode-btn" onclick="setMode('return')">RETURN</button>
+    </div>
   </div>
 
-  <div id="statusBanner" class="status-banner status-waiting">TAP TO START</div>
+  <div id="reader-container">
+    <div id="reader"></div>
 
-  <div id="historyList"></div>
+    <div class="scan-overlay">
+      <div class="scan-corner tl"></div>
+      <div class="scan-corner tr"></div>
+      <div class="scan-corner bl"></div>
+      <div class="scan-corner br"></div>
+    </div>
 
-  <div class="action-bar">
-    <button class="btn-action" onclick="clearAll()">Clear All</button>
-    <button class="btn-action" onclick="toggleHistory()">Review</button>
-    <button id="finishBtn" class="btn-action btn-finish" onclick="finishSession()">Finish & Save</button>
+    <div id="startOverlay" class="start-overlay">
+      <button class="start-btn" onclick="userStart()">Tap to Start Scanning</button>
+    </div>
   </div>
-</div>
 
-<!-- Confirm Modal -->
-<div id="confirmModal">
-  <div class="box">
-    <div style="font-weight:900;">Clear all scanned iPads?</div>
-    <div style="margin:10px 0;color:#cbd5e1;">This cannot be undone.</div>
-    <button style="background:#475569;color:#fff;" onclick="confirmCancel()">Cancel</button>
-    <button style="background:#ef4444;color:#fff;" onclick="confirmOk()">Clear</button>
+  <div class="overlay">
+    <div id="userPanel">
+      <div>User: <b id="currentUserId" style="color:var(--primary)">-</b></div>
+      <div id="sessionCount">Qty: 0</div>
+    </div>
+
+    <div id="statusBanner" class="status-banner status-waiting">TAP TO START</div>
+
+    <div id="historyList"></div>
+
+    <div class="action-bar">
+      <button class="btn-action btn-clear" onclick="clearAll()">Clear All</button>
+      <button class="btn-action" onclick="toggleHistory()">Review</button>
+      <button id="finishBtn" class="btn-action btn-finish" onclick="finishSession()">Finish & Save</button>
+    </div>
   </div>
-</div>
 
-<script>
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzIiBdQgkwI3vgJrgVktRoE6GPQYRGckS6MK9bzfy7SeLoy-7r03D2V0dWA2L0kShw_/exec";
-const UNAVAILABLE_REFRESH_INTERVAL_MS = 5000;
+  <script>
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzIiBdQgkwI3vgJrgVktRoE6GPQYRGckS6MK9bzfy7SeLoy-7r03D2V0dWA2L0kShw_/exec";
+    const DEBUG_MODE = false;
 
-let html5QrCode, scannerStarted=false;
-let mode="borrow", userId=null, sessionHistory=[];
-let historyDom=new Map(), confirmCallback=null, isProcessing=false;
+    let mode = "borrow";
+    let userId = null;
+    let sessionHistory = [];
+    let isProcessing = false;
 
-function updateBanner(t,c){
-  const b=document.getElementById("statusBanner");
-  b.textContent=t;
-  b.className="status-banner "+c;
-}
+    let unavailableIpads = [];
+    let unavailableCacheTs = 0;
 
-function userStart(){
-  document.getElementById("startOverlay").style.display="none";
-  startScanner();
-}
+    let lastScanned = null;
+    let lastScanTime = 0;
 
-async function startScanner(){
-  if(scannerStarted) return;
-  html5QrCode=new Html5Qrcode("reader");
-  await html5QrCode.start(
-    {facingMode:"environment"},
-    {fps:8,qrbox:260},
-    onScan
-  );
-  scannerStarted=true;
-  startScannerWatchdog();
-  startUnavailableAutoRefresh();
-  updateBanner("SCAN USER ID","status-waiting");
-}
+    let html5QrCode = null;
+    let scannerStarted = false;
 
-function onScan(txt){
-  txt=txt.trim().toUpperCase();
-  if(!userId){
-    if(/^[ST]\d+/.test(txt)){
-      userId=txt;
-      document.getElementById("userPanel").style.display="flex";
-      document.getElementById("currentUserId").textContent=txt;
-      updateBanner("SCAN IPADS","status-success");
-    } else {
-      updateBanner("INVALID USER","status-error");
+    let audioCtx = null;
+
+    // DOM performance helpers
+    let historyDom = new Map(); // ipadId -> element
+
+    function log(...args){ if (DEBUG_MODE) console.log(...args); }
+
+    function setVhUnit(){
+      const vh = window.innerHeight * 0.01;
+      document.documentElement.style.setProperty("--vh", `${vh}px`);
     }
-    return;
-  }
+    window.addEventListener("resize", setVhUnit);
+    window.addEventListener("orientationchange", () => setTimeout(setVhUnit, 250));
+    setVhUnit();
 
-  if(!/^IPAD-\d+/.test(txt)){
-    updateBanner("INVALID IPAD","status-error");
-    return;
-  }
-
-  if(sessionHistory.includes(txt)) return;
-
-  sessionHistory.push(txt);
-  addRow(txt);
-  updateBanner("ADDED "+txt,"status-success");
-}
-
-function addRow(id){
-  const l=document.getElementById("historyList");
-  l.style.display="block";
-  const d=document.createElement("div");
-  d.className="history-row";
-  d.innerHTML=`<span>${id}</span><button class="delete-btn" onclick="removeRow('${id}')">DELETE</button>`;
-  l.appendChild(d);
-  historyDom.set(id,d);
-  document.getElementById("sessionCount").textContent="Qty: "+sessionHistory.length;
-}
-
-function removeRow(id){
-  sessionHistory=sessionHistory.filter(x=>x!==id);
-  historyDom.get(id)?.remove();
-  historyDom.delete(id);
-  document.getElementById("sessionCount").textContent="Qty: "+sessionHistory.length;
-}
-
-function clearAll(){
-  if(sessionHistory.length===0) return;
-  confirmCallback=()=>{
-    sessionHistory=[];
-    historyDom.clear();
-    document.getElementById("historyList").innerHTML="";
-    document.getElementById("historyList").style.display="none";
-    document.getElementById("sessionCount").textContent="Qty: 0";
-    updateBanner("CLEARED","status-waiting");
-    restartScanner();
-  };
-  document.getElementById("confirmModal").style.display="flex";
-}
-
-function confirmCancel(){
-  confirmCallback=null;
-  document.getElementById("confirmModal").style.display="none";
-}
-
-function confirmOk(){
-  document.getElementById("confirmModal").style.display="none";
-  confirmCallback?.();
-  confirmCallback=null;
-}
-
-async function restartScanner(){
-  try{
-    if(html5QrCode?.isScanning){
-      await html5QrCode.stop();
+    function vibrate(ms){
+      try{ if (navigator.vibrate) navigator.vibrate(ms); } catch(e){}
     }
-    scannerStarted=false;
-    await startScanner();
-  }catch{}
-}
 
-function startScannerWatchdog(){
-  setInterval(()=>{ if(!html5QrCode?.isScanning) restartScanner(); },1500);
-}
+    function initAudioContext(){
+      try{
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === "suspended") audioCtx.resume();
+      } catch(e){}
+    }
 
-function startUnavailableAutoRefresh(){
-  setInterval(()=>{},UNAVAILABLE_REFRESH_INTERVAL_MS);
-}
+    function playBeep(freq, durMs){
+      try{
+        initAudioContext();
+        const o = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        o.connect(g);
+        g.connect(audioCtx.destination);
+        o.frequency.value = freq;
+        g.gain.setValueAtTime(0.12, audioCtx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + durMs / 1000);
+        o.start();
+        o.stop(audioCtx.currentTime + durMs / 1000);
+      } catch(e){}
+    }
 
-function toggleHistory(){
-  const l=document.getElementById("historyList");
-  l.style.display=l.style.display==="none"?"block":"none";
-}
+    function playError(){
+      try{
+        initAudioContext();
+        const o = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        o.type = "sine";
+        o.frequency.setValueAtTime(280, audioCtx.currentTime);
+        o.frequency.exponentialRampToValueAtTime(150, audioCtx.currentTime + 0.25);
+        o.connect(g);
+        g.connect(audioCtx.destination);
+        g.gain.setValueAtTime(0.12, audioCtx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.25);
+        o.start();
+        o.stop(audioCtx.currentTime + 0.25);
+      } catch(e){}
+    }
 
-function setMode(m){
-  mode=m;
-  document.getElementById("btnBorrow").classList.toggle("active",m==="borrow");
-  document.getElementById("btnReturn").classList.toggle("active",m==="return");
-}
+    function updateBanner(text, cls){
+      const b = document.getElementById("statusBanner");
+      b.innerText = text;
+      b.className = "status-banner " + cls;
+      b.onclick = null;
+      log("Banner:", text);
+    }
 
-async function finishSession(){
-  if(isProcessing||sessionHistory.length===0) return;
-  isProcessing=true;
-  updateBanner("SAVING...","status-warning");
+    function makeRequestId(){
+      try{
+        if (crypto && crypto.randomUUID) return crypto.randomUUID();
+      } catch(e){}
+      return "RID_" + Date.now() + "_" + Math.random().toString(16).slice(2);
+    }
 
-  try{
-    const r=await fetch(SCRIPT_URL,{
-      method:"POST",
-      body:JSON.stringify({action:mode,userId,ipadId:sessionHistory,requestId:crypto.randomUUID()})
+    async function userStart(){
+      initAudioContext();
+      vibrate(20);
+      document.getElementById("startOverlay").style.display = "none";
+      updateBanner("STARTING CAMERA...", "status-waiting");
+      await startScanner();
+    }
+
+    async function syncUnavailableList(retryCount = 0){
+      const maxRetries = 3;
+      try{
+        const resp = await fetch(SCRIPT_URL, { method:"GET", cache:"no-cache" });
+        if (!resp.ok) throw new Error("HTTP " + resp.status);
+        const data = await resp.json();
+        if (!data.success || !data.borrowed) throw new Error("Bad response");
+
+        unavailableIpads = data.borrowed
+          .map(x => (x || "").toString().trim().toUpperCase())
+          .filter(Boolean);
+
+        unavailableCacheTs = Date.now();
+        updateBanner("STEP 1: SCAN USER ID", "status-waiting");
+      } catch(e){
+        log("Sync failed:", e);
+        if (retryCount < maxRetries){
+          setTimeout(() => syncUnavailableList(retryCount + 1), 800 * (retryCount + 1));
+        } else {
+          const age = Date.now() - unavailableCacheTs;
+          if (!unavailableIpads || unavailableIpads.length === 0 || age > 10 * 60 * 1000){
+            unavailableIpads = [];
+          }
+          updateBanner("OFFLINE MODE: SCAN USER ID", "status-warning");
+        }
+      }
+    }
+
+    async function startScanner(){
+      try{
+        if (scannerStarted) return;
+
+        html5QrCode = new Html5Qrcode("reader");
+
+        const config = {
+          fps: 8,
+          qrbox: { width: 280, height: 280 },
+          aspectRatio: 1.0,
+          formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE]
+        };
+
+        const devices = await Html5Qrcode.getCameras();
+        if (!devices || devices.length === 0) throw new Error("No camera found");
+
+        await html5QrCode.start(
+          { facingMode:"environment" },
+          config,
+          onScanSuccess,
+          () => {}
+        );
+
+        scannerStarted = true;
+        updateBanner("SYNCING STATUS...", "status-waiting");
+        await syncUnavailableList();
+      } catch(err){
+        console.error(err);
+        updateBanner("CAMERA ERROR. TAP TO RETRY", "status-error");
+        document.getElementById("startOverlay").style.display = "flex";
+        document.getElementById("statusBanner").onclick = () => {
+          document.getElementById("statusBanner").onclick = null;
+          userStart();
+        };
+      }
+    }
+
+    async function restartScanner(){
+      try{
+        if (!html5QrCode) return;
+        if (html5QrCode.isScanning){
+          await html5QrCode.stop();
+        }
+        scannerStarted = false;
+        await startScanner();
+      } catch(e){
+        log("Restart scanner failed:", e);
+      }
+    }
+
+    window.addEventListener("orientationchange", () => setTimeout(restartScanner, 450));
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) setTimeout(restartScanner, 450);
     });
-    const j=await r.json();
-    if(j.success){
-      updateBanner("SAVED","status-success");
-      clearAll();
-    }else{
-      updateBanner("SAVE FAILED","status-error");
+
+    function updateCount_(){
+      document.getElementById("sessionCount").innerText = "Qty: " + sessionHistory.length;
     }
-  }catch{
-    updateBanner("SAVE FAILED","status-error");
-  }finally{
-    isProcessing=false;
-  }
-}
-</script>
+
+    function ensureHistoryVisible_(){
+      const list = document.getElementById("historyList");
+      if (list.style.display !== "block") list.style.display = "block";
+    }
+
+    function addHistoryRowBottom_(ipadId){
+      const list = document.getElementById("historyList");
+      ensureHistoryVisible_();
+
+      const row = document.createElement("div");
+      row.className = "history-row";
+
+      const label = document.createElement("span");
+      label.className = "history-label";
+      label.textContent = ipadId;
+
+      const btn = document.createElement("button");
+      btn.className = "delete-btn";
+      btn.textContent = "DELETE";
+      btn.onclick = () => removeById_(ipadId);
+
+      row.appendChild(label);
+      row.appendChild(btn);
+
+      list.appendChild(row);
+      historyDom.set(ipadId, row);
+      updateCount_();
+    }
+
+    function removeById_(ipadId){
+      const idx = sessionHistory.indexOf(ipadId);
+      if (idx >= 0) sessionHistory.splice(idx, 1);
+
+      const el = historyDom.get(ipadId);
+      if (el && el.parentNode) el.parentNode.removeChild(el);
+      historyDom.delete(ipadId);
+
+      updateCount_();
+      if (sessionHistory.length === 0) {
+        document.getElementById("historyList").style.display = "none";
+        updateBanner("READY. SCAN NEXT IPAD", "status-waiting");
+      }
+    }
+
+    function clearHistoryDom_(){
+      historyDom.clear();
+      const list = document.getElementById("historyList");
+      list.innerHTML = "";
+    }
+
+    function onScanSuccess(decodedText){
+      const now = Date.now();
+      const clean = (decodedText || "").toString().trim().toUpperCase();
+      if (!clean) return;
+
+      if (clean === lastScanned && (now - lastScanTime) < 1500){
+        updateBanner("DUPLICATE SCAN", "status-warning");
+        playError();
+        vibrate(60);
+        return;
+      }
+
+      lastScanned = clean;
+      lastScanTime = now;
+
+      const userPattern = /^[ST]\d{3,}$/i;
+      const ipadPattern = /^IPAD-\d{3,}$/i;
+
+      if (!userId){
+        if (userPattern.test(clean)){
+          userId = clean;
+          document.getElementById("userPanel").style.display = "flex";
+          document.getElementById("currentUserId").innerText = userId;
+          updateBanner("USER OK. NOW SCAN IPADS", "status-success");
+          playBeep(900, 120);
+          vibrate(25);
+        } else {
+          updateBanner("INVALID USER QR (S001 OR T001)", "status-error");
+          playError();
+          vibrate(80);
+        }
+        return;
+      }
+
+      if (ipadPattern.test(clean)){
+        if (mode === "borrow" && unavailableIpads.includes(clean)){
+          updateBanner("UNAVAILABLE (BORROWED OR ADMIN BLOCKED)", "status-error");
+          playError();
+          vibrate(90);
+          return;
+        }
+
+        if (sessionHistory.includes(clean)){
+          updateBanner("ALREADY IN THIS SESSION", "status-warning");
+          playError();
+          vibrate(60);
+          return;
+        }
+
+        sessionHistory.push(clean);
+        addHistoryRowBottom_(clean);
+
+        updateBanner("ADDED " + clean, "status-success");
+        playBeep(650, 90);
+        vibrate(20);
+        return;
+      }
+
+      updateBanner("INVALID QR CODE", "status-error");
+      playError();
+      vibrate(80);
+    }
+
+    function clearAll(){
+      if (sessionHistory.length === 0) return;
+      if (confirm("Clear all scanned iPads and start over?")){
+        sessionHistory = [];
+        clearHistoryDom_();
+        document.getElementById("historyList").style.display = "none";
+        updateCount_();
+        updateBanner("LIST CLEARED", "status-waiting");
+      }
+    }
+
+    function toggleHistory(){
+      const l = document.getElementById("historyList");
+      if (sessionHistory.length === 0) return;
+      l.style.display = (l.style.display === "none" || l.style.display === "") ? "block" : "none";
+    }
+
+    function resetAll(){
+      userId = null;
+      sessionHistory = [];
+      isProcessing = false;
+      document.getElementById("finishBtn").disabled = false;
+      document.getElementById("userPanel").style.display = "none";
+      document.getElementById("historyList").style.display = "none";
+      clearHistoryDom_();
+      updateCount_();
+      updateBanner("STEP 1: SCAN USER ID", "status-waiting");
+    }
+
+    function resetSessionOnly(){
+      sessionHistory = [];
+      isProcessing = false;
+      document.getElementById("finishBtn").disabled = false;
+      document.getElementById("historyList").style.display = "none";
+      clearHistoryDom_();
+      updateCount_();
+      updateBanner("READY. SCAN NEXT IPAD", "status-waiting");
+    }
+
+    function setMode(m){
+      if (isProcessing) {
+        updateBanner("SAVING IN PROGRESS", "status-warning");
+        return;
+      }
+      mode = m;
+      document.getElementById("btnBorrow").classList.toggle("active", m === "borrow");
+      document.getElementById("btnReturn").classList.toggle("active", m === "return");
+      resetAll();
+      syncUnavailableList();
+    }
+
+    async function finishSession(){
+      if (!userId || sessionHistory.length === 0 || isProcessing) return;
+
+      isProcessing = true;
+      document.getElementById("finishBtn").disabled = true;
+      updateBanner("SAVING...", "status-warning");
+
+      const payload = {
+        action: mode,
+        userId: userId,
+        ipadId: sessionHistory,
+        requestId: makeRequestId()
+      };
+
+      const maxRetries = 3;
+
+      for (let attempt = 1; attempt <= maxRetries; attempt++){
+        try{
+          const resp = await fetch(SCRIPT_URL, {
+            method: "POST",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify(payload)
+          });
+
+          let result = null;
+          try{ result = await resp.json(); } catch(e){}
+
+          if (result && result.success){
+            updateBanner("SAVED", "status-success");
+            playBeep(1100, 200);
+            vibrate(40);
+            await syncUnavailableList();
+            setTimeout(resetSessionOnly, 700);
+            return;
+          }
+
+          if (result && Array.isArray(result.results)){
+            const failed = result.results.filter(r => !r.success).map(r => r.ipadId).filter(Boolean);
+
+            if (failed.length > 0){
+              // Keep only failed ones for retry, rebuild list efficiently
+              sessionHistory = failed;
+              clearHistoryDom_();
+              for (const id of sessionHistory) addHistoryRowBottom_(id);
+
+              isProcessing = false;
+              document.getElementById("finishBtn").disabled = false;
+              updateBanner("SOME FAILED. REVIEW AND RETRY", "status-warning");
+              playError();
+              vibrate(80);
+              await syncUnavailableList();
+              return;
+            }
+
+            throw new Error("Save failed");
+          }
+
+          const errMsg = (result && (result.error || result.message)) ? (result.error || result.message) : ("HTTP " + resp.status);
+          throw new Error(errMsg);
+
+        } catch(err){
+          log("Save attempt failed:", attempt, err);
+
+          if (attempt < maxRetries){
+            updateBanner("RETRYING " + attempt + " OF " + maxRetries, "status-warning");
+            await new Promise(r => setTimeout(r, 700 * attempt));
+          } else {
+            playError();
+            vibrate(90);
+            updateBanner("SAVE FAILED. TAP TO RETRY", "status-error");
+
+            isProcessing = false;
+            document.getElementById("finishBtn").disabled = false;
+
+            document.getElementById("statusBanner").onclick = () => {
+              document.getElementById("statusBanner").onclick = null;
+              finishSession();
+            };
+          }
+        }
+      }
+    }
+  </script>
 </body>
 </html>
