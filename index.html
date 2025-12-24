@@ -319,7 +319,7 @@
   </div>
 
   <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzIiBdQgkwI3vgJrgVktRoE6GPQYRGckS6MK9bzfy7SeLoy-7r03D2V0dWA2L0kShw_/exec";
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwZm7QVUiNBVNOjc9VBhXf8UcTxgt5oPXldRdzeS2X1SjAxKjmk5GmxPoM7jVa7RHBy/exec";
     const DEBUG_MODE = false;
 
     let mode = "borrow";
@@ -330,6 +330,12 @@
     let unavailableIpads = [];
     let unavailableCacheTs = 0;
 
+    // NEW: inventory + roster caches
+    let knownIpadsSet = new Set();
+    let knownUsersSet = new Set();
+    let inventoryCacheTs = 0;
+    let rosterCacheTs = 0;
+
     let lastScanned = null;
     let lastScanTime = 0;
 
@@ -338,7 +344,6 @@
 
     let audioCtx = null;
 
-    // DOM performance helpers
     let historyDom = new Map(); // ipadId -> element
 
     function log(...args){ if (DEBUG_MODE) console.log(...args); }
@@ -417,29 +422,49 @@
       await startScanner();
     }
 
-    async function syncUnavailableList(retryCount = 0){
+    // UPDATED: pulls unavailable list + inventory ids + user roster ids in ONE GET
+    async function syncSystemCache(retryCount = 0){
       const maxRetries = 3;
       try{
         const resp = await fetch(SCRIPT_URL, { method:"GET", cache:"no-cache" });
         if (!resp.ok) throw new Error("HTTP " + resp.status);
         const data = await resp.json();
-        if (!data.success || !data.borrowed) throw new Error("Bad response");
+        if (!data.success) throw new Error(data.error || "Bad response");
 
-        unavailableIpads = data.borrowed
+        // unavailable list
+        unavailableIpads = (data.borrowed || [])
           .map(x => (x || "").toString().trim().toUpperCase())
           .filter(Boolean);
-
         unavailableCacheTs = Date.now();
+
+        // known iPads
+        const inv = (data.inventoryIds || [])
+          .map(x => (x || "").toString().trim().toUpperCase())
+          .filter(Boolean);
+        knownIpadsSet = new Set(inv);
+        inventoryCacheTs = Date.now();
+
+        // known users
+        const users = (data.userIds || [])
+          .map(x => (x || "").toString().trim().toUpperCase())
+          .filter(Boolean);
+        knownUsersSet = new Set(users);
+        rosterCacheTs = Date.now();
+
         updateBanner("STEP 1: SCAN USER ID", "status-waiting");
       } catch(e){
         log("Sync failed:", e);
         if (retryCount < maxRetries){
-          setTimeout(() => syncUnavailableList(retryCount + 1), 800 * (retryCount + 1));
+          setTimeout(() => syncSystemCache(retryCount + 1), 800 * (retryCount + 1));
         } else {
-          const age = Date.now() - unavailableCacheTs;
-          if (!unavailableIpads || unavailableIpads.length === 0 || age > 10 * 60 * 1000){
-            unavailableIpads = [];
-          }
+          // offline behavior: keep last cache if it exists, but still allow scanning
+          const invAge = Date.now() - inventoryCacheTs;
+          const userAge = Date.now() - rosterCacheTs;
+
+          // if cache is too old, do not block, but warn
+          if (invAge > 10 * 60 * 1000) knownIpadsSet = new Set();
+          if (userAge > 10 * 60 * 1000) knownUsersSet = new Set();
+
           updateBanner("OFFLINE MODE: SCAN USER ID", "status-warning");
         }
       }
@@ -470,7 +495,7 @@
 
         scannerStarted = true;
         updateBanner("SYNCING STATUS...", "status-waiting");
-        await syncUnavailableList();
+        await syncSystemCache();
       } catch(err){
         console.error(err);
         updateBanner("CAMERA ERROR. TAP TO RETRY", "status-error");
@@ -493,6 +518,29 @@
       } catch(e){
         log("Restart scanner failed:", e);
       }
+    }
+
+    // NEW: hard reset for iPad Safari camera stability
+    async function hardResetScanner(){
+      try{
+        if (html5QrCode){
+          if (html5QrCode.isScanning){
+            await html5QrCode.stop();
+          }
+          html5QrCode.clear();
+        }
+      } catch(e){
+        console.warn("Scanner stop failed", e);
+      }
+
+      html5QrCode = null;
+      scannerStarted = false;
+
+      lastScanned = null;
+      lastScanTime = 0;
+
+      await new Promise(r => setTimeout(r, 150));
+      await startScanner();
     }
 
     window.addEventListener("orientationchange", () => setTimeout(restartScanner, 450));
@@ -572,8 +620,18 @@
       const userPattern = /^[ST]\d{3,}$/i;
       const ipadPattern = /^IPAD-\d{3,}$/i;
 
+      // STEP 1: user
       if (!userId){
         if (userPattern.test(clean)){
+          // NEW: reject users not in roster when cache is available
+          // If cache is empty (offline), allow but server will still reject on save
+          if (knownUsersSet.size > 0 && !knownUsersSet.has(clean)){
+            updateBanner("USER NOT IN ROSTER", "status-error");
+            playError();
+            vibrate(90);
+            return;
+          }
+
           userId = clean;
           document.getElementById("userPanel").style.display = "flex";
           document.getElementById("currentUserId").innerText = userId;
@@ -588,7 +646,17 @@
         return;
       }
 
+      // STEP 2: iPads
       if (ipadPattern.test(clean)){
+        // NEW: block unknown iPads before adding
+        // If inventory cache is empty (offline), do not block here, server will still reject
+        if (knownIpadsSet.size > 0 && !knownIpadsSet.has(clean)){
+          updateBanner("UNKNOWN IPAD ID. DO NOT USE", "status-error");
+          playError();
+          vibrate(100);
+          return;
+        }
+
         if (mode === "borrow" && unavailableIpads.includes(clean)){
           updateBanner("UNAVAILABLE (BORROWED OR ADMIN BLOCKED)", "status-error");
           playError();
@@ -617,7 +685,8 @@
       vibrate(80);
     }
 
-    function clearAll(){
+    // UPDATED: Clear All now hard-resets scanner to prevent iPad Safari camera lock
+    async function clearAll(){
       if (sessionHistory.length === 0) return;
       if (confirm("Clear all scanned iPads and start over?")){
         sessionHistory = [];
@@ -625,6 +694,8 @@
         document.getElementById("historyList").style.display = "none";
         updateCount_();
         updateBanner("LIST CLEARED", "status-waiting");
+
+        await hardResetScanner();
       }
     }
 
@@ -665,7 +736,7 @@
       document.getElementById("btnBorrow").classList.toggle("active", m === "borrow");
       document.getElementById("btnReturn").classList.toggle("active", m === "return");
       resetAll();
-      syncUnavailableList();
+      syncSystemCache();
     }
 
     async function finishSession(){
@@ -686,11 +757,18 @@
 
       for (let attempt = 1; attempt <= maxRetries; attempt++){
         try{
+          // NEW: abort after 15s to avoid iPad Safari "stuck fetch"
+          const controller = new AbortController();
+          const t = setTimeout(() => controller.abort(), 15000);
+
           const resp = await fetch(SCRIPT_URL, {
             method: "POST",
             headers: { "Content-Type": "text/plain;charset=utf-8" },
-            body: JSON.stringify(payload)
+            body: JSON.stringify(payload),
+            signal: controller.signal
           });
+
+          clearTimeout(t);
 
           let result = null;
           try{ result = await resp.json(); } catch(e){}
@@ -699,8 +777,19 @@
             updateBanner("SAVED", "status-success");
             playBeep(1100, 200);
             vibrate(40);
-            await syncUnavailableList();
+            await syncSystemCache();
             setTimeout(resetSessionOnly, 700);
+            return;
+          }
+
+          // If roster invalid or other hard errors
+          if (result && (result.error || result.message) && (!result.results || result.results.length === 0)){
+            const msg = (result.message || result.error || "SAVE FAILED").toString().toUpperCase();
+            updateBanner(msg, "status-error");
+            playError();
+            vibrate(90);
+            isProcessing = false;
+            document.getElementById("finishBtn").disabled = false;
             return;
           }
 
@@ -708,7 +797,6 @@
             const failed = result.results.filter(r => !r.success).map(r => r.ipadId).filter(Boolean);
 
             if (failed.length > 0){
-              // Keep only failed ones for retry, rebuild list efficiently
               sessionHistory = failed;
               clearHistoryDom_();
               for (const id of sessionHistory) addHistoryRowBottom_(id);
@@ -718,7 +806,7 @@
               updateBanner("SOME FAILED. REVIEW AND RETRY", "status-warning");
               playError();
               vibrate(80);
-              await syncUnavailableList();
+              await syncSystemCache();
               return;
             }
 
