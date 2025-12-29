@@ -114,99 +114,147 @@
     }
 
     .scan-corner{
-      width:22px;
-      height:22px;
       position:absolute;
-      border:4px solid var(--success);
+      width:30px;
+      height:30px;
+      border:3px solid var(--success);
     }
-    .scan-corner.tl{ top:-2px; left:-2px; border-right:none; border-bottom:none; border-top-left-radius:14px; }
-    .scan-corner.tr{ top:-2px; right:-2px; border-left:none; border-bottom:none; border-top-right-radius:14px; }
-    .scan-corner.bl{ bottom:-2px; left:-2px; border-right:none; border-top:none; border-bottom-left-radius:14px; }
-    .scan-corner.br{ bottom:-2px; right:-2px; border-left:none; border-top:none; border-bottom-right-radius:14px; }
+    .scan-corner.tl{ top:0; left:0; border-right:none; border-bottom:none; }
+    .scan-corner.tr{ top:0; right:0; border-left:none; border-bottom:none; }
+    .scan-corner.bl{ bottom:0; left:0; border-right:none; border-top:none; }
+    .scan-corner.br{ bottom:0; right:0; border-left:none; border-top:none; }
 
     .start-overlay{
       position:absolute;
-      inset:0;
-      background:rgba(15,23,42,0.72);
+      inset:0 12px 0 12px;
+      top:0;
       display:flex;
       align-items:center;
       justify-content:center;
+      background:rgba(15,23,42,0.65);
       border-radius:14px;
-      z-index:10;
+      z-index:5;
+      height:clamp(220px, 38vh, 360px);
+      pointer-events:auto;
     }
 
     .start-btn{
-      padding:14px 18px;
       border:none;
       border-radius:14px;
-      background:var(--primary);
-      color:#fff;
+      padding:14px 18px;
       font-weight:900;
-      font-size:1.05rem;
+      font-size:1rem;
+      color:#fff;
+      background:var(--primary);
       cursor:pointer;
-      box-shadow:0 10px 30px rgba(0,0,0,0.35);
+      box-shadow:0 10px 25px rgba(0,0,0,0.35);
+    }
+
+    .start-btn:active{
+      opacity:0.85;
+      transform:scale(0.98);
     }
 
     .overlay{
+      padding:16px;
+      background:var(--panel);
+      border-radius:24px 24px 0 0;
+      box-shadow:0 -5px 20px rgba(0,0,0,0.5);
       flex:1;
-      width:min(560px, 100%);
-      margin:0 auto;
-      padding:12px;
       display:flex;
       flex-direction:column;
-      gap:10px;
       overflow:hidden;
+      width:min(900px, 100%);
+      margin:0 auto;
     }
 
     #userPanel{
       display:none;
       justify-content:space-between;
+      gap:10px;
+      padding:12px;
+      background:#0f172a;
+      border-radius:10px;
+      margin-bottom:10px;
+      border-left:4px solid var(--primary);
+      flex-shrink:0;
       align-items:center;
-      background:rgba(255,255,255,0.06);
-      border:1px solid rgba(255,255,255,0.12);
-      padding:10px 12px;
-      border-radius:12px;
-      font-weight:800;
     }
 
     .status-banner{
-      padding:12px;
-      border-radius:12px;
       text-align:center;
+      padding:14px;
+      border-radius:10px;
       font-weight:900;
-      font-size:1.05rem;
-      border:1px solid rgba(255,255,255,0.12);
+      margin-bottom:10px;
+      flex-shrink:0;
+      font-size:0.95rem;
       user-select:none;
     }
 
-    .status-waiting{ background:rgba(59,130,246,0.15); color:#bfdbfe; }
-    .status-success{ background:rgba(16,185,129,0.18); color:#a7f3d0; }
-    .status-error{ background:rgba(239,68,68,0.18); color:#fecaca; }
-    .status-warning{ background:rgba(245,158,11,0.18); color:#fde68a; }
+    .status-waiting{ background:var(--gray); color:#cbd5e1; }
+    .status-success{ background:var(--success); color:#fff; border:2px solid #6ee7b7; }
+    .status-error{ background:var(--danger); color:#fff; }
+    .status-warning{ background:var(--warning); color:#fff; }
 
     #historyList{
-      display:none;
+      flex:1;
       overflow:auto;
+      background:#0f172a;
       border-radius:12px;
-      border:1px solid rgba(255,255,255,0.12);
-      background:rgba(255,255,255,0.04);
-      padding:8px;
-      max-height:30vh;
+      margin-bottom:12px;
+      border:1px solid var(--gray);
+      display:none;
     }
 
     .history-row{
       display:flex;
-      align-items:center;
       justify-content:space-between;
-      padding:10px;
-      border-radius:10px;
-      border:1px solid rgba(255,255,255,0.08);
-      margin-bottom:8px;
+      align-items:center;
+      padding:12px;
+      border-bottom:1px solid #334155;
     }
 
     .history-label{
       font-weight:900;
-      letter-spacing:0.4px;
+      letter-spacing:1px;
+      color:#e2e8f0;
+    }
+
+    .action-bar{
+      display:grid;
+      grid-template-columns:1fr 1fr 1fr;
+      gap:10px;
+      height:56px;
+      flex-shrink:0;
+    }
+
+    .btn-action{
+      border-radius:12px;
+      border:none;
+      background:var(--gray);
+      color:#fff;
+      font-size:1rem;
+      font-weight:900;
+      cursor:pointer;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      transition:0.2s;
+      min-height:44px;
+    }
+
+    .btn-finish{ background:var(--primary); }
+    .btn-clear{ background:#475569; }
+
+    .btn-action:active{
+      opacity:0.7;
+      transform:scale(0.98);
+    }
+
+    .btn-finish:disabled{
+      opacity:0.5;
+      cursor:not-allowed;
     }
 
     .delete-btn{
@@ -218,33 +266,6 @@
       font-weight:900;
       font-size:0.8rem;
       cursor:pointer;
-    }
-
-    .action-bar{
-      display:flex;
-      gap:10px;
-      margin-top:auto;
-      height:56px;
-    }
-
-    .btn-action{
-      flex:1;
-      border:none;
-      border-radius:14px;
-      font-weight:900;
-      cursor:pointer;
-      background:rgba(255,255,255,0.08);
-      color:#fff;
-      border:1px solid rgba(255,255,255,0.14);
-      font-size:1rem;
-    }
-
-    .btn-clear{ background:rgba(239,68,68,0.18); border-color:rgba(239,68,68,0.38); }
-    .btn-finish{ background:rgba(16,185,129,0.18); border-color:rgba(16,185,129,0.35); }
-
-    .btn-finish:disabled{
-      opacity:0.5;
-      cursor:not-allowed;
     }
 
     @media (max-width:480px){
@@ -326,22 +347,55 @@
 
     function log(...args){ if (DEBUG_MODE) console.log(...args); }
 
-    function setVh(){
+    function setVhUnit(){
       const vh = window.innerHeight * 0.01;
       document.documentElement.style.setProperty("--vh", `${vh}px`);
     }
-    window.addEventListener("resize", setVh);
-    setVh();
+    window.addEventListener("resize", setVhUnit);
+    window.addEventListener("orientationchange", () => setTimeout(setVhUnit, 250));
+    setVhUnit();
 
-    function setMode(newMode){
-      if (mode === newMode) return;
-      mode = newMode;
+    function vibrate(ms){
+      try{ if (navigator.vibrate) navigator.vibrate(ms); } catch(e){}
+    }
 
-      document.getElementById("btnBorrow").classList.toggle("active", mode === "borrow");
-      document.getElementById("btnReturn").classList.toggle("active", mode === "return");
+    function initAudioContext(){
+      try{
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === "suspended") audioCtx.resume();
+      } catch(e){}
+    }
 
-      clearAll(true);
-      updateBanner(mode === "borrow" ? "STEP 1: SCAN USER ID" : "RETURN MODE. SCAN IPAD", "status-waiting");
+    function playBeep(freq, durMs){
+      try{
+        initAudioContext();
+        const o = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        o.connect(g);
+        g.connect(audioCtx.destination);
+        o.frequency.value = freq;
+        g.gain.setValueAtTime(0.12, audioCtx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + durMs / 1000);
+        o.start();
+        o.stop(audioCtx.currentTime + durMs / 1000);
+      } catch(e){}
+    }
+
+    function playError(){
+      try{
+        initAudioContext();
+        const o = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        o.type = "sine";
+        o.frequency.setValueAtTime(280, audioCtx.currentTime);
+        o.frequency.exponentialRampToValueAtTime(150, audioCtx.currentTime + 0.25);
+        o.connect(g);
+        g.connect(audioCtx.destination);
+        g.gain.setValueAtTime(0.12, audioCtx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.25);
+        o.start();
+        o.stop(audioCtx.currentTime + 0.25);
+      } catch(e){}
     }
 
     function updateBanner(text, cls){
@@ -357,39 +411,6 @@
         if (crypto && crypto.randomUUID) return crypto.randomUUID();
       } catch(e){}
       return "RID_" + Date.now() + "_" + Math.random().toString(16).slice(2);
-    }
-
-    function initAudioContext(){
-      try{
-        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
-      } catch(e){}
-    }
-
-    function playBeep(freq = 880, duration = 120){
-      try{
-        if (!audioCtx) return;
-        const o = audioCtx.createOscillator();
-        const g = audioCtx.createGain();
-        o.type = "sine";
-        o.frequency.value = freq;
-        g.gain.value = 0.05;
-        o.connect(g);
-        g.connect(audioCtx.destination);
-        o.start();
-        setTimeout(() => { try{ o.stop(); } catch(e){} }, duration);
-      } catch(e){}
-    }
-
-    function playError(){
-      playBeep(220, 140);
-      setTimeout(() => playBeep(180, 140), 150);
-    }
-
-    function vibrate(ms){
-      try{
-        if (navigator.vibrate) navigator.vibrate(ms);
-      } catch(e){}
     }
 
     async function userStart(){
@@ -425,81 +446,57 @@
         knownUsersSet = new Set(users);
         rosterCacheTs = Date.now();
 
-        updateBanner(mode === "borrow" ? "READY. SCAN USER ID" : "RETURN MODE. SCAN IPAD", "status-waiting");
-      } catch(err){
-        console.warn("Cache sync failed", err);
+        updateBanner("STEP 1: SCAN USER ID", "status-waiting");
+      } catch(e){
+        log("Sync failed:", e);
         if (retryCount < maxRetries){
-          await new Promise(r => setTimeout(r, 400 + retryCount * 300));
-          return syncSystemCache(retryCount + 1);
+          setTimeout(() => syncSystemCache(retryCount + 1), 800 * (retryCount + 1));
+        } else {
+          const invAge = Date.now() - inventoryCacheTs;
+          const userAge = Date.now() - rosterCacheTs;
+          if (invAge > 10 * 60 * 1000) knownIpadsSet = new Set();
+          if (userAge > 10 * 60 * 1000) knownUsersSet = new Set();
+          updateBanner("OFFLINE MODE: SCAN USER ID", "status-warning");
         }
-        updateBanner("SYNC FAILED. TAP TO RETRY", "status-error");
-        document.getElementById("statusBanner").onclick = () => {
-          document.getElementById("statusBanner").onclick = null;
-          syncSystemCache(0);
-        };
       }
     }
 
     async function startScanner(){
-  try{
-    if (scannerStarted) return;
+      try{
+        if (scannerStarted) return;
 
-    html5QrCode = new Html5Qrcode("reader");
+        html5QrCode = new Html5Qrcode("reader");
 
-    const qrboxFn = (viewfinderWidth, viewfinderHeight) => {
-      const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-      const size = Math.floor(Math.max(220, Math.min(360, minEdge * 0.75)));
-      return { width: size, height: size };
-    };
+        const config = {
+          fps: 8,
+          qrbox: { width: 280, height: 280 },
+          aspectRatio: 1.0,
+          formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE]
+        };
 
-    const config = {
-      fps: 12,
-      qrbox: qrboxFn,
-      formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
-      experimentalFeatures: { useBarCodeDetectorIfSupported: true },
-      videoConstraints: {
-        facingMode: "environment",
-        width: { ideal: 1280 },
-        height: { ideal: 720 }
+        const devices = await Html5Qrcode.getCameras();
+        if (!devices || devices.length === 0) throw new Error("No camera found");
+
+        await html5QrCode.start(
+          { facingMode:"environment" },
+          config,
+          onScanSuccess,
+          () => {}
+        );
+
+        scannerStarted = true;
+        updateBanner("SYNCING STATUS...", "status-waiting");
+        await syncSystemCache();
+      } catch(err){
+        console.error(err);
+        updateBanner("CAMERA ERROR. TAP TO RETRY", "status-error");
+        document.getElementById("startOverlay").style.display = "flex";
+        document.getElementById("statusBanner").onclick = () => {
+          document.getElementById("statusBanner").onclick = null;
+          userStart();
+        };
       }
-    };
-
-    const devices = await Html5Qrcode.getCameras();
-    if (!devices || devices.length === 0) throw new Error("No camera found");
-
-    const backCam =
-      devices.find(d => /back|rear|environment/i.test(d.label || "")) ||
-      devices[devices.length - 1];
-
-    await html5QrCode.start(
-      backCam.id,
-      config,
-      onScanSuccess,
-      () => {}
-    );
-
-    scannerStarted = true;
-    updateBanner("SYNCING STATUS...", "status-waiting");
-    await syncSystemCache();
-  } catch(err){
-    console.error(err);
-
-    const msg = (err && err.message) ? err.message : String(err);
-    updateBanner("CAMERA ERROR. TAP TO RETRY", "status-error");
-
-    // Optional: show the real reason on screen for fast debugging
-    if (DEBUG_MODE) {
-      updateBanner("CAMERA ERROR: " + msg, "status-error");
     }
-
-    document.getElementById("startOverlay").style.display = "flex";
-    document.getElementById("statusBanner").onclick = () => {
-      document.getElementById("statusBanner").onclick = null;
-      userStart();
-    };
-  }
-}
-
 
     async function restartScanner(){
       try{
@@ -613,25 +610,6 @@
       const userPattern = /^[ST]\d{3,}$/i;
       const ipadPattern = /^IPAD-\d{3,}$/i;
 
-      if (mode === "return"){
-        if (!ipadPattern.test(clean)){
-          updateBanner("INVALID IPAD QR (IPAD-001)", "status-error");
-          playError();
-          vibrate(80);
-          return;
-        }
-
-        if (knownIpadsSet.size > 0 && !knownIpadsSet.has(clean)){
-          updateBanner("UNKNOWN IPAD. BLOCKED", "status-error");
-          playError();
-          vibrate(90);
-          return;
-        }
-
-        finishReturn(clean);
-        return;
-      }
-
       if (!userId){
         if (userPattern.test(clean)){
           if (knownUsersSet.size > 0 && !knownUsersSet.has(clean)){
@@ -655,148 +633,180 @@
         return;
       }
 
-      if (!ipadPattern.test(clean)){
-        updateBanner("INVALID IPAD QR (IPAD-001)", "status-error");
-        playError();
-        vibrate(80);
+      if (ipadPattern.test(clean)){
+        if (knownIpadsSet.size > 0 && !knownIpadsSet.has(clean)){
+          updateBanner("UNKNOWN IPAD ID. DO NOT USE", "status-error");
+          playError();
+          vibrate(100);
+          return;
+        }
+
+        if (mode === "borrow" && unavailableIpads.includes(clean)){
+          updateBanner("UNAVAILABLE (BORROWED OR ADMIN BLOCKED)", "status-error");
+          playError();
+          vibrate(90);
+          return;
+        }
+
+        if (sessionHistory.includes(clean)){
+          updateBanner("ALREADY IN THIS SESSION", "status-warning");
+          playError();
+          vibrate(60);
+          return;
+        }
+
+        sessionHistory.push(clean);
+        addHistoryRowBottom_(clean);
+
+        updateBanner("ADDED " + clean, "status-success");
+        playBeep(650, 90);
+        vibrate(20);
         return;
       }
 
-      if (knownIpadsSet.size > 0 && !knownIpadsSet.has(clean)){
-        updateBanner("UNKNOWN IPAD. BLOCKED", "status-error");
-        playError();
-        vibrate(90);
-        return;
+      updateBanner("INVALID QR CODE", "status-error");
+      playError();
+      vibrate(80);
+    }
+
+    // CHANGE 1: Clear All also resets user
+    async function clearAll(){
+      if (sessionHistory.length === 0 && !userId) return;
+
+      if (confirm("Clear and reset for next user?")){
+        resetAll();
+        await hardResetScanner();
       }
-
-      if (unavailableIpads.includes(clean)){
-        updateBanner("IPAD UNAVAILABLE", "status-error");
-        playError();
-        vibrate(90);
-        return;
-      }
-
-      if (sessionHistory.includes(clean)){
-        updateBanner("ALREADY ADDED", "status-warning");
-        playError();
-        vibrate(60);
-        return;
-      }
-
-      sessionHistory.push(clean);
-      addHistoryRowBottom_(clean);
-      updateBanner("ADDED. SCAN NEXT IPAD", "status-success");
-      playBeep(880, 90);
-      vibrate(20);
-
-      document.getElementById("finishBtn").disabled = (sessionHistory.length === 0);
     }
 
     function toggleHistory(){
-      const list = document.getElementById("historyList");
-      list.style.display = (list.style.display === "block") ? "none" : "block";
+      const l = document.getElementById("historyList");
+      if (sessionHistory.length === 0) return;
+      l.style.display = (l.style.display === "none" || l.style.display === "") ? "block" : "none";
     }
 
-    function clearAll(silent){
+    function resetAll(){
       userId = null;
-      sessionHistory.length = 0;
-      clearHistoryDom_();
-
+      sessionHistory = [];
+      isProcessing = false;
+      document.getElementById("finishBtn").disabled = false;
       document.getElementById("userPanel").style.display = "none";
       document.getElementById("historyList").style.display = "none";
-      document.getElementById("finishBtn").disabled = true;
+      clearHistoryDom_();
+      updateCount_();
+      updateBanner("STEP 1: SCAN USER ID", "status-waiting");
+    }
 
-      if (!silent){
-        updateBanner(mode === "borrow" ? "STEP 1: SCAN USER ID" : "RETURN MODE. SCAN IPAD", "status-waiting");
-        playBeep(600, 90);
-        vibrate(15);
+    function setMode(m){
+      if (isProcessing) {
+        updateBanner("SAVING IN PROGRESS", "status-warning");
+        return;
       }
+      mode = m;
+      document.getElementById("btnBorrow").classList.toggle("active", m === "borrow");
+      document.getElementById("btnReturn").classList.toggle("active", m === "return");
+      resetAll();
+      syncSystemCache();
     }
 
     async function finishSession(){
-      if (isProcessing) return;
-      if (!userId || sessionHistory.length === 0) return;
+      if (!userId || sessionHistory.length === 0 || isProcessing) return;
 
       isProcessing = true;
       document.getElementById("finishBtn").disabled = true;
-      updateBanner("SAVING...", "status-waiting");
+      updateBanner("SAVING...", "status-warning");
 
       const payload = {
-        requestId: makeRequestId(),
-        action: "borrow",
+        action: mode,
         userId: userId,
-        ipads: sessionHistory.slice(0)
+        ipadId: sessionHistory,
+        requestId: makeRequestId()
       };
 
-      try{
-        const resp = await fetch(SCRIPT_URL, {
-          method:"POST",
-          headers:{ "Content-Type":"application/json" },
-          body: JSON.stringify(payload)
-        });
-        const data = await resp.json();
-        if (!data.success) throw new Error(data.error || "Save failed");
+      const maxRetries = 3;
 
-        updateBanner("SAVED. NEXT USER", "status-success");
-        playBeep(980, 120);
-        vibrate(25);
+      for (let attempt = 1; attempt <= maxRetries; attempt++){
+        try{
+          const controller = new AbortController();
+          const t = setTimeout(() => controller.abort(), 15000);
 
-        clearAll(true);
-        setTimeout(() => updateBanner("STEP 1: SCAN USER ID", "status-waiting"), 650);
-        await syncSystemCache();
-      } catch(err){
-        console.error(err);
-        updateBanner("SAVE FAILED. TAP TO RETRY", "status-error");
-        playError();
-        vibrate(90);
+          const resp = await fetch(SCRIPT_URL, {
+            method: "POST",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify(payload),
+            signal: controller.signal
+          });
 
-        document.getElementById("statusBanner").onclick = () => {
-          document.getElementById("statusBanner").onclick = null;
-          finishSession();
-        };
+          clearTimeout(t);
 
-        document.getElementById("finishBtn").disabled = false;
-      } finally {
-        isProcessing = false;
-      }
-    }
+          let result = null;
+          try{ result = await resp.json(); } catch(e){}
 
-    async function finishReturn(ipadId){
-      if (isProcessing) return;
-      isProcessing = true;
-      updateBanner("RETURNING...", "status-waiting");
+          if (result && result.success){
+            updateBanner("SAVED. NEXT USER", "status-success");
+            playBeep(1100, 200);
+            vibrate(40);
 
-      const payload = {
-        requestId: makeRequestId(),
-        action: "return",
-        ipadId: ipadId
-      };
+            await syncSystemCache();
 
-      try{
-        const resp = await fetch(SCRIPT_URL, {
-          method:"POST",
-          headers:{ "Content-Type":"application/json" },
-          body: JSON.stringify(payload)
-        });
-        const data = await resp.json();
-        if (!data.success) throw new Error(data.error || "Return failed");
+            // CHANGE 2: After every successful save, require new user scan
+            setTimeout(resetAll, 700);
+            return;
+          }
 
-        updateBanner("RETURNED OK", "status-success");
-        playBeep(980, 120);
-        vibrate(25);
-        await syncSystemCache();
-      } catch(err){
-        console.error(err);
-        updateBanner("RETURN FAILED. TAP TO RETRY", "status-error");
-        playError();
-        vibrate(90);
+          if (result && (result.error || result.message) && (!result.results || result.results.length === 0)){
+            const msg = (result.message || result.error || "SAVE FAILED").toString().toUpperCase();
+            updateBanner(msg, "status-error");
+            playError();
+            vibrate(90);
+            isProcessing = false;
+            document.getElementById("finishBtn").disabled = false;
+            return;
+          }
 
-        document.getElementById("statusBanner").onclick = () => {
-          document.getElementById("statusBanner").onclick = null;
-          finishReturn(ipadId);
-        };
-      } finally {
-        isProcessing = false;
+          if (result && Array.isArray(result.results)){
+            const failed = result.results.filter(r => !r.success).map(r => r.ipadId).filter(Boolean);
+
+            if (failed.length > 0){
+              sessionHistory = failed;
+              clearHistoryDom_();
+              for (const id of sessionHistory) addHistoryRowBottom_(id);
+
+              isProcessing = false;
+              document.getElementById("finishBtn").disabled = false;
+              updateBanner("SOME FAILED. REVIEW AND RETRY", "status-warning");
+              playError();
+              vibrate(80);
+              await syncSystemCache();
+              return;
+            }
+
+            throw new Error("Save failed");
+          }
+
+          const errMsg = (result && (result.error || result.message)) ? (result.error || result.message) : ("HTTP " + resp.status);
+          throw new Error(errMsg);
+
+        } catch(err){
+          log("Save attempt failed:", attempt, err);
+
+          if (attempt < maxRetries){
+            updateBanner("RETRYING " + attempt + " OF " + maxRetries, "status-warning");
+            await new Promise(r => setTimeout(r, 700 * attempt));
+          } else {
+            playError();
+            vibrate(90);
+            updateBanner("SAVE FAILED. TAP TO RETRY", "status-error");
+
+            isProcessing = false;
+            document.getElementById("finishBtn").disabled = false;
+
+            document.getElementById("statusBanner").onclick = () => {
+              document.getElementById("statusBanner").onclick = null;
+              finishSession();
+            };
+          }
+        }
       }
     }
   </script>
