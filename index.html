@@ -105,7 +105,17 @@
       border-radius:14px;
       pointer-events:none;
       opacity:0.55;
+      transition:opacity 0.2s, border-color 0.2s;
+    }
+
+    .scan-overlay.scanning{
       animation:pulse 2s infinite;
+    }
+
+    .scan-overlay.cooldown{
+      border-color:var(--warning);
+      opacity:0.3;
+      animation:none;
     }
 
     @keyframes pulse{
@@ -118,7 +128,13 @@
       width:30px;
       height:30px;
       border:3px solid var(--success);
+      transition:border-color 0.2s;
     }
+    
+    .scan-overlay.cooldown .scan-corner{
+      border-color:var(--warning);
+    }
+    
     .scan-corner.tl{ top:0; left:0; border-right:none; border-bottom:none; }
     .scan-corner.tr{ top:0; right:0; border-left:none; border-bottom:none; }
     .scan-corner.bl{ bottom:0; left:0; border-right:none; border-top:none; }
@@ -289,7 +305,7 @@
   <div id="reader-container">
     <div id="reader"></div>
 
-    <div class="scan-overlay">
+    <div class="scan-overlay scanning">
       <div class="scan-corner tl"></div>
       <div class="scan-corner tr"></div>
       <div class="scan-corner bl"></div>
@@ -345,12 +361,19 @@
 
     let historyDom = new Map();
 
-    // NEW: Track device info and scanner attempts
+    // NEW: Cooldown state management
+    let isInCooldown = false;
+    let cooldownTimer = null;
+    const COOLDOWN_DURATION = 600; // ms - time to pause scanning after success
+    const DUPLICATE_WINDOW = 2000; // ms - extended duplicate detection window
+
+    // Device info
     let deviceInfo = {
       isIpad: /iPad/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1),
       isIOS: /iPhone|iPad|iPod/.test(navigator.userAgent),
       screenWidth: window.innerWidth,
-      screenHeight: window.innerHeight
+      screenHeight: window.innerHeight,
+      isPortrait: window.innerHeight > window.innerWidth
     };
 
     let scannerAttempt = 0;
@@ -361,6 +384,11 @@
     function setVhUnit(){
       const vh = window.innerHeight * 0.01;
       document.documentElement.style.setProperty("--vh", `${vh}px`);
+      
+      // Update orientation tracking
+      deviceInfo.isPortrait = window.innerHeight > window.innerWidth;
+      deviceInfo.screenWidth = window.innerWidth;
+      deviceInfo.screenHeight = window.innerHeight;
     }
     window.addEventListener("resize", setVhUnit);
     window.addEventListener("orientationchange", () => setTimeout(setVhUnit, 250));
@@ -415,6 +443,29 @@
       b.className = "status-banner " + cls;
       b.onclick = null;
       log("Banner:", text);
+    }
+
+    // NEW: Visual cooldown feedback
+    function enterCooldown(){
+      isInCooldown = true;
+      const overlay = document.querySelector('.scan-overlay');
+      overlay.classList.remove('scanning');
+      overlay.classList.add('cooldown');
+      
+      log('Entered cooldown mode');
+      
+      cooldownTimer = setTimeout(() => {
+        exitCooldown();
+      }, COOLDOWN_DURATION);
+    }
+
+    function exitCooldown(){
+      isInCooldown = false;
+      const overlay = document.querySelector('.scan-overlay');
+      overlay.classList.remove('cooldown');
+      overlay.classList.add('scanning');
+      
+      log('Exited cooldown - ready for next scan');
     }
 
     function makeRequestId(){
@@ -472,38 +523,34 @@
       }
     }
 
-    // NEW: Get optimal scanner config based on device and attempt number
+    // IMPROVED: Get optimal scanner config with orientation support
     function getScannerConfig(attempt = 0) {
       const baseConfig = {
-        // CRITICAL iPad fixes:
-        disableFlip: false,           // Essential for iPads - allows camera flip
+        disableFlip: false,
         formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE]
       };
 
-      // Progressive fallback strategy - try different configs
+      // Detect orientation for better qrbox calculation
+      const isPortrait = window.innerHeight > window.innerWidth;
+      
       if (attempt === 0) {
-        // PRIMARY CONFIG - Optimized for iPads
         return {
           ...baseConfig,
-          fps: 15,                    // Higher FPS for better iPad detection (was 8)
+          fps: 15,
           qrbox: function(viewfinderWidth, viewfinderHeight) {
-            // Responsive qrbox - adapts to device screen
+            // More aggressive sizing for portrait mode
             const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-            const qrboxSize = Math.floor(minEdge * 0.75); // 75% of smaller dimension
+            const qrboxSize = Math.floor(minEdge * 0.7); // Slightly smaller for better detection
+            log(`QR box size: ${qrboxSize}px (viewport: ${viewfinderWidth}x${viewfinderHeight}, portrait: ${isPortrait})`);
             return {
               width: qrboxSize,
               height: qrboxSize
             };
           },
-          // Remove aspectRatio constraint - let device decide
-          videoConstraints: {
-            facingMode: "environment",
-            width: { ideal: 1920, max: 1920 },      // Higher resolution helps with glossy QR codes
-            height: { ideal: 1080, max: 1080 }
-          }
+          // FIXED: Remove explicit video constraints that can cause portrait issues
+          // Let the browser choose best settings based on orientation
         };
       } else if (attempt === 1) {
-        // FALLBACK 1 - Lower FPS, smaller qrbox
         return {
           ...baseConfig,
           fps: 12,
@@ -515,21 +562,12 @@
               height: qrboxSize
             };
           },
-          videoConstraints: {
-            facingMode: "environment",
-            width: { ideal: 1280, max: 1920 },
-            height: { ideal: 720, max: 1080 }
-          }
         };
       } else {
-        // FALLBACK 2 - Most compatible settings
         return {
           ...baseConfig,
           fps: 10,
-          qrbox: 250,                 // Fixed size as last resort
-          videoConstraints: {
-            facingMode: "environment"
-          }
+          qrbox: 250,
         };
       }
     }
@@ -543,20 +581,17 @@
         const config = getScannerConfig(scannerAttempt);
         
         log("Starting scanner with config (attempt " + (scannerAttempt + 1) + "):", config);
+        log("Current orientation:", deviceInfo.isPortrait ? "Portrait" : "Landscape");
 
         const devices = await Html5Qrcode.getCameras();
         if (!devices || devices.length === 0) throw new Error("No camera found");
 
-        // Try to start with config.videoConstraints if provided, else use facingMode
-        const cameraId = config.videoConstraints 
-          ? { facingMode: "environment" }  // Use facingMode object
-          : { facingMode: "environment" };
-
+        // Use environment-facing camera (back camera)
         await html5QrCode.start(
-          cameraId,
+          { facingMode: "environment" },
           config,
           onScanSuccess,
-          onScanError  // NEW: Handle scan errors for diagnostics
+          onScanError
         );
 
         scannerStarted = true;
@@ -565,7 +600,6 @@
       } catch(err){
         console.error("Scanner start error (attempt " + (scannerAttempt + 1) + "):", err);
         
-        // Try fallback configs before giving up
         if (scannerAttempt < MAX_SCANNER_ATTEMPTS - 1) {
           scannerAttempt++;
           scannerStarted = false;
@@ -577,24 +611,18 @@
           return;
         }
 
-        // All attempts failed
         updateBanner("CAMERA ERROR. TAP TO RETRY", "status-error");
         document.getElementById("startOverlay").style.display = "flex";
         document.getElementById("statusBanner").onclick = () => {
           document.getElementById("statusBanner").onclick = null;
-          scannerAttempt = 0;  // Reset for fresh retry
+          scannerAttempt = 0;
           userStart();
         };
       }
     }
 
-    // NEW: Error callback for diagnostics
     function onScanError(errorMessage) {
-      // This fires constantly when no QR is detected - don't log it unless debugging
-      // But we can use it to detect if scanning is working at all
-      if (DEBUG_MODE && errorMessage) {
-        console.log("Scan error:", errorMessage);
-      }
+      // Silently ignore - fires constantly when no QR detected
     }
 
     async function restartScanner(){
@@ -604,6 +632,11 @@
           await html5QrCode.stop();
         }
         scannerStarted = false;
+        
+        // Clear cooldown state on restart
+        if (cooldownTimer) clearTimeout(cooldownTimer);
+        exitCooldown();
+        
         await startScanner();
       } catch(e){
         log("Restart scanner failed:", e);
@@ -624,10 +657,14 @@
 
       html5QrCode = null;
       scannerStarted = false;
-      scannerAttempt = 0;  // Reset attempt counter
+      scannerAttempt = 0;
 
       lastScanned = null;
       lastScanTime = 0;
+      
+      // Clear cooldown
+      if (cooldownTimer) clearTimeout(cooldownTimer);
+      exitCooldown();
 
       await new Promise(r => setTimeout(r, 150));
       await startScanner();
@@ -697,9 +734,15 @@
       const clean = (decodedText || "").toString().trim().toUpperCase();
       if (!clean) return;
 
-      // Improved duplicate detection with shorter timeout for faster scanning
-      if (clean === lastScanned && (now - lastScanTime) < 1200){
-        updateBanner("DUPLICATE SCAN", "status-warning");
+      // IMPROVED: Block all scans during cooldown period
+      if (isInCooldown) {
+        log("Scan blocked - in cooldown period");
+        return;
+      }
+
+      // IMPROVED: Extended duplicate detection with better UX
+      if (clean === lastScanned && (now - lastScanTime) < DUPLICATE_WINDOW){
+        updateBanner("MOVE TO NEXT QR CODE", "status-warning");
         playError();
         vibrate(60);
         return;
@@ -726,6 +769,9 @@
           updateBanner("USER OK. NOW SCAN IPADS", "status-success");
           playBeep(900, 120);
           vibrate(25);
+          
+          // NEW: Enter cooldown after successful user scan
+          enterCooldown();
         } else {
           updateBanner("INVALID USER QR (S001 OR T001)", "status-error");
           playError();
@@ -759,9 +805,12 @@
         sessionHistory.push(clean);
         addHistoryRowBottom_(clean);
 
-        updateBanner("ADDED " + clean, "status-success");
+        updateBanner("✓ " + clean + " - SCAN NEXT", "status-success");
         playBeep(650, 90);
         vibrate(20);
+        
+        // NEW: Enter cooldown after successful iPad scan
+        enterCooldown();
         return;
       }
 
@@ -795,6 +844,10 @@
       clearHistoryDom_();
       updateCount_();
       updateBanner("STEP 1: SCAN USER ID", "status-waiting");
+      
+      // Clear cooldown on reset
+      if (cooldownTimer) clearTimeout(cooldownTimer);
+      exitCooldown();
     }
 
     function setMode(m){
