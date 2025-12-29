@@ -345,6 +345,17 @@
 
     let historyDom = new Map();
 
+    // NEW: Track device info and scanner attempts
+    let deviceInfo = {
+      isIpad: /iPad/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1),
+      isIOS: /iPhone|iPad|iPod/.test(navigator.userAgent),
+      screenWidth: window.innerWidth,
+      screenHeight: window.innerHeight
+    };
+
+    let scannerAttempt = 0;
+    const MAX_SCANNER_ATTEMPTS = 3;
+
     function log(...args){ if (DEBUG_MODE) console.log(...args); }
 
     function setVhUnit(){
@@ -461,40 +472,128 @@
       }
     }
 
+    // NEW: Get optimal scanner config based on device and attempt number
+    function getScannerConfig(attempt = 0) {
+      const baseConfig = {
+        // CRITICAL iPad fixes:
+        disableFlip: false,           // Essential for iPads - allows camera flip
+        formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE]
+      };
+
+      // Progressive fallback strategy - try different configs
+      if (attempt === 0) {
+        // PRIMARY CONFIG - Optimized for iPads
+        return {
+          ...baseConfig,
+          fps: 15,                    // Higher FPS for better iPad detection (was 8)
+          qrbox: function(viewfinderWidth, viewfinderHeight) {
+            // Responsive qrbox - adapts to device screen
+            const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+            const qrboxSize = Math.floor(minEdge * 0.75); // 75% of smaller dimension
+            return {
+              width: qrboxSize,
+              height: qrboxSize
+            };
+          },
+          // Remove aspectRatio constraint - let device decide
+          videoConstraints: {
+            facingMode: "environment",
+            width: { ideal: 1920, max: 1920 },      // Higher resolution helps with glossy QR codes
+            height: { ideal: 1080, max: 1080 }
+          }
+        };
+      } else if (attempt === 1) {
+        // FALLBACK 1 - Lower FPS, smaller qrbox
+        return {
+          ...baseConfig,
+          fps: 12,
+          qrbox: function(viewfinderWidth, viewfinderHeight) {
+            const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+            const qrboxSize = Math.floor(minEdge * 0.65);
+            return {
+              width: qrboxSize,
+              height: qrboxSize
+            };
+          },
+          videoConstraints: {
+            facingMode: "environment",
+            width: { ideal: 1280, max: 1920 },
+            height: { ideal: 720, max: 1080 }
+          }
+        };
+      } else {
+        // FALLBACK 2 - Most compatible settings
+        return {
+          ...baseConfig,
+          fps: 10,
+          qrbox: 250,                 // Fixed size as last resort
+          videoConstraints: {
+            facingMode: "environment"
+          }
+        };
+      }
+    }
+
     async function startScanner(){
       try{
         if (scannerStarted) return;
 
         html5QrCode = new Html5Qrcode("reader");
 
-        const config = {
-          fps: 8,
-          qrbox: { width: 280, height: 280 },
-          aspectRatio: 1.0,
-          formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE]
-        };
+        const config = getScannerConfig(scannerAttempt);
+        
+        log("Starting scanner with config (attempt " + (scannerAttempt + 1) + "):", config);
 
         const devices = await Html5Qrcode.getCameras();
         if (!devices || devices.length === 0) throw new Error("No camera found");
 
+        // Try to start with config.videoConstraints if provided, else use facingMode
+        const cameraId = config.videoConstraints 
+          ? { facingMode: "environment" }  // Use facingMode object
+          : { facingMode: "environment" };
+
         await html5QrCode.start(
-          { facingMode:"environment" },
+          cameraId,
           config,
           onScanSuccess,
-          () => {}
+          onScanError  // NEW: Handle scan errors for diagnostics
         );
 
         scannerStarted = true;
         updateBanner("SYNCING STATUS...", "status-waiting");
         await syncSystemCache();
       } catch(err){
-        console.error(err);
+        console.error("Scanner start error (attempt " + (scannerAttempt + 1) + "):", err);
+        
+        // Try fallback configs before giving up
+        if (scannerAttempt < MAX_SCANNER_ATTEMPTS - 1) {
+          scannerAttempt++;
+          scannerStarted = false;
+          html5QrCode = null;
+          
+          updateBanner("RETRYING CAMERA... (" + (scannerAttempt + 1) + "/" + MAX_SCANNER_ATTEMPTS + ")", "status-warning");
+          await new Promise(r => setTimeout(r, 500));
+          await startScanner();
+          return;
+        }
+
+        // All attempts failed
         updateBanner("CAMERA ERROR. TAP TO RETRY", "status-error");
         document.getElementById("startOverlay").style.display = "flex";
         document.getElementById("statusBanner").onclick = () => {
           document.getElementById("statusBanner").onclick = null;
+          scannerAttempt = 0;  // Reset for fresh retry
           userStart();
         };
+      }
+    }
+
+    // NEW: Error callback for diagnostics
+    function onScanError(errorMessage) {
+      // This fires constantly when no QR is detected - don't log it unless debugging
+      // But we can use it to detect if scanning is working at all
+      if (DEBUG_MODE && errorMessage) {
+        console.log("Scan error:", errorMessage);
       }
     }
 
@@ -525,6 +624,7 @@
 
       html5QrCode = null;
       scannerStarted = false;
+      scannerAttempt = 0;  // Reset attempt counter
 
       lastScanned = null;
       lastScanTime = 0;
@@ -597,7 +697,8 @@
       const clean = (decodedText || "").toString().trim().toUpperCase();
       if (!clean) return;
 
-      if (clean === lastScanned && (now - lastScanTime) < 1500){
+      // Improved duplicate detection with shorter timeout for faster scanning
+      if (clean === lastScanned && (now - lastScanTime) < 1200){
         updateBanner("DUPLICATE SCAN", "status-warning");
         playError();
         vibrate(60);
@@ -669,7 +770,6 @@
       vibrate(80);
     }
 
-    // CHANGE 1: Clear All also resets user
     async function clearAll(){
       if (sessionHistory.length === 0 && !userId) return;
 
@@ -749,7 +849,6 @@
 
             await syncSystemCache();
 
-            // CHANGE 2: After every successful save, require new user scan
             setTimeout(resetAll, 700);
             return;
           }
