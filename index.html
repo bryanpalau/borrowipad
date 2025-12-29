@@ -441,51 +441,65 @@
     }
 
     async function startScanner(){
-      try{
-        if (scannerStarted) return;
+  try{
+    if (scannerStarted) return;
 
-        html5QrCode = new Html5Qrcode("reader");
+    html5QrCode = new Html5Qrcode("reader");
 
-        const qrboxFn = (viewfinderWidth, viewfinderHeight) => {
-          const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-          const size = Math.floor(Math.max(220, Math.min(360, minEdge * 0.75)));
-          return { width: size, height: size };
-        };
+    const qrboxFn = (viewfinderWidth, viewfinderHeight) => {
+      const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+      const size = Math.floor(Math.max(220, Math.min(360, minEdge * 0.75)));
+      return { width: size, height: size };
+    };
 
-        const config = {
-          fps: 12,
-          qrbox: qrboxFn,
-          formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
-          experimentalFeatures: { useBarCodeDetectorIfSupported: true }
-        };
-
-        const devices = await Html5Qrcode.getCameras();
-        if (!devices || devices.length === 0) throw new Error("No camera found");
-
-        await html5QrCode.start(
-          {
-            facingMode: "environment",
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
-          },
-          config,
-          onScanSuccess,
-          () => {}
-        );
-
-        scannerStarted = true;
-        updateBanner("SYNCING STATUS...", "status-waiting");
-        await syncSystemCache();
-      } catch(err){
-        console.error(err);
-        updateBanner("CAMERA ERROR. TAP TO RETRY", "status-error");
-        document.getElementById("startOverlay").style.display = "flex";
-        document.getElementById("statusBanner").onclick = () => {
-          document.getElementById("statusBanner").onclick = null;
-          userStart();
-        };
+    const config = {
+      fps: 12,
+      qrbox: qrboxFn,
+      formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+      experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+      videoConstraints: {
+        facingMode: "environment",
+        width: { ideal: 1280 },
+        height: { ideal: 720 }
       }
+    };
+
+    const devices = await Html5Qrcode.getCameras();
+    if (!devices || devices.length === 0) throw new Error("No camera found");
+
+    const backCam =
+      devices.find(d => /back|rear|environment/i.test(d.label || "")) ||
+      devices[devices.length - 1];
+
+    await html5QrCode.start(
+      backCam.id,
+      config,
+      onScanSuccess,
+      () => {}
+    );
+
+    scannerStarted = true;
+    updateBanner("SYNCING STATUS...", "status-waiting");
+    await syncSystemCache();
+  } catch(err){
+    console.error(err);
+
+    const msg = (err && err.message) ? err.message : String(err);
+    updateBanner("CAMERA ERROR. TAP TO RETRY", "status-error");
+
+    // Optional: show the real reason on screen for fast debugging
+    if (DEBUG_MODE) {
+      updateBanner("CAMERA ERROR: " + msg, "status-error");
     }
+
+    document.getElementById("startOverlay").style.display = "flex";
+    document.getElementById("statusBanner").onclick = () => {
+      document.getElementById("statusBanner").onclick = null;
+      userStart();
+    };
+  }
+}
+
 
     async function restartScanner(){
       try{
